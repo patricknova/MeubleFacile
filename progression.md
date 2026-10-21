@@ -19,6 +19,8 @@
 - [x] Configuration Next.js (App Router, Turbopack, TypeScript strict)
 - [x] Configuration Tailwind CSS v4 et design tokens (Booking.com style)
 - [x] Client & Server Supabase (`@/lib/supabase/client.ts`, `@/lib/supabase/server.ts`, middleware proxy d'authentification)
+- [x] Résilience Middleware & Edge Vercel : gestion des variables d'environnement manquantes ou nommées différemment (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` et `NEXT_PUBLIC_SUPABASE_ANON_KEY`), bloc `try...catch` pour éviter l'erreur `500 MIDDLEWARE_INVOCATION_FAILED`.
+- [x] Modèle `.env.example` créé pour le déploiement Vercel et le développement local.
 - [x] Règles du projet formalisées dans [meublefacile.md](file:///e:/digitalex%20meuble%20app/meublefacile/.agents/rules/meublefacile.md)
 - [x] Configuration ESLint nettoyée (0 erreur, 0 avertissement)
 
