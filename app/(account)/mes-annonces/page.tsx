@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 import { LISTING_STATUS_LABELS, LISTING_STATUS_COLORS } from "@/lib/types";
@@ -22,6 +23,10 @@ export default async function MesAnnoncesPage({ searchParams }: Props) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
+  if (!user) {
+    redirect("/auth/connexion?redirectTo=/mes-annonces");
+  }
+
   const { data: listings } = await supabase
     .from("listings")
     .select(`
@@ -30,7 +35,7 @@ export default async function MesAnnoncesPage({ searchParams }: Props) {
       neighborhoods(name, slug), cities(slug, name),
       listing_media(path_thumb, is_cover, position)
     `)
-    .eq("owner_id", user!.id)
+    .eq("owner_id", user.id)
     .order("updated_content_at", { ascending: false });
 
   return (

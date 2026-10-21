@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ListingCard } from "@/components/ListingCard";
 import { EmptyState } from "@/components/EmptyState";
@@ -14,6 +15,10 @@ export default async function FavorisPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
+  if (!user) {
+    redirect("/auth/connexion?redirectTo=/favoris");
+  }
+
   const { data: favorites } = await supabase
     .from("favorites")
     .select(`
@@ -26,7 +31,7 @@ export default async function FavorisPage() {
         listing_media(path_thumb, alt, is_cover, position)
       )
     `)
-    .eq("user_id", user!.id)
+    .eq("user_id", user.id)
     .eq("listings.status", "published")
     .order("created_at", { ascending: false });
 

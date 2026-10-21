@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { updateProfile } from "@/lib/actions/auth";
 import type { Metadata } from "next";
@@ -16,10 +17,14 @@ export default async function ProfilPage({ searchParams }: Props) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
+  if (!user) {
+    redirect("/auth/connexion?redirectTo=/profil");
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("first_name, last_name, whatsapp_phone, role, is_verified, created_at")
-    .eq("id", user!.id)
+    .eq("id", user.id)
     .single();
 
   return (

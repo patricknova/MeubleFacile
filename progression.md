@@ -21,7 +21,8 @@
 - [x] Client & Server Supabase (`@/lib/supabase/client.ts`, `@/lib/supabase/server.ts`, middleware proxy d'authentification)
 - [x] Résilience Middleware & Edge Vercel : gestion des variables d'environnement manquantes ou nommées différemment (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` et `NEXT_PUBLIC_SUPABASE_ANON_KEY`), bloc `try...catch` pour éviter l'erreur `500 MIDDLEWARE_INVOCATION_FAILED`.
 - [x] Résilience SSR & Composants Serveur : intégration de fallbacks sûrs dans `lib/supabase/server.ts` et `lib/supabase/client.ts` pour éviter tout crash `This page couldn't load / A server error occurred`.
-- [x] Création des pages d'erreur et d'état : boundary `app/error.tsx` personnalisée et page 404 ergonomique `app/not-found.tsx`.
+- [x] Résolution de l'erreur React #441 : protection stricte des composants serveur d'espace membre (`/favoris`, `/profil`, `/mes-annonces`) avec redirection immédiate si l'utilisateur est déconnecté (`!user`).
+- [x] Création des gestionnaires d'erreurs globaux : `app/global-error.tsx`, boundary de segment `app/error.tsx` personnalisée et page 404 ergonomique `app/not-found.tsx`.
 - [x] Propagation adéquate des exceptions de rendu dynamique Next.js (`DYNAMIC_SERVER_USAGE`).
 - [x] Modèle `.env.example` créé pour le déploiement Vercel et le développement local.
 - [x] Règles du projet formalisées dans [meublefacile.md](file:///e:/digitalex%20meuble%20app/meublefacile/.agents/rules/meublefacile.md)
