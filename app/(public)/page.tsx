@@ -44,29 +44,54 @@ const HOW_IT_WORKS = [
 ];
 
 export default async function HomePage() {
-  const supabase = await createClient();
+  let neighborhoods: Array<{
+    id: number;
+    slug: string;
+    name: string;
+    city_id: number;
+    cities: { slug: string } | null;
+  }> = [];
 
-  // Récupérer les quartiers pour la barre de recherche
-  const { data: neighborhoods } = await supabase
-    .from("neighborhoods")
-    .select("id, slug, name, city_id, cities(slug)")
-    .eq("cities.active", true)
-    .order("name");
+  let recentListings: any[] = [];
 
-  // Annonces récentes publiées (pour la section "Dernières annonces")
-  const { data: recentListings } = await supabase
-    .from("listings")
-    .select(`
-      id, slug, type, title, landmark, bedrooms, surface_m2,
-      price_night, price_month, deposit, verified_badge,
-      updated_content_at,
-      neighborhoods(slug, name),
-      cities(slug, name),
-      listing_media(path_thumb, alt, is_cover, position)
-    `)
-    .eq("status", "published")
-    .order("published_at", { ascending: false })
-    .limit(6);
+  try {
+    const supabase = await createClient();
+
+    // Récupérer les quartiers pour la barre de recherche
+    const { data: nData, error: nError } = await supabase
+      .from("neighborhoods")
+      .select("id, slug, name, city_id, cities(slug)")
+      .eq("cities.active", true)
+      .order("name");
+
+    if (!nError && nData) {
+      neighborhoods = nData as unknown as typeof neighborhoods;
+    }
+
+    // Annonces récentes publiées (pour la section "Dernières annonces")
+    const { data: lData, error: lError } = await supabase
+      .from("listings")
+      .select(`
+        id, slug, type, title, landmark, bedrooms, surface_m2,
+        price_night, price_month, deposit, verified_badge,
+        updated_content_at,
+        neighborhoods(slug, name),
+        cities(slug, name),
+        listing_media(path_thumb, alt, is_cover, position)
+      `)
+      .eq("status", "published")
+      .order("published_at", { ascending: false })
+      .limit(6);
+
+    if (!lError && lData) {
+      recentListings = lData;
+    }
+  } catch (error: any) {
+    if (error?.digest === "DYNAMIC_SERVER_USAGE") {
+      throw error;
+    }
+    console.warn("[HomePage] Erreur lors de la récupération des données :", error);
+  }
 
   const jsonLd = {
     "@context": "https://schema.org",

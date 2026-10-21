@@ -3,17 +3,27 @@ import { createClient } from "@/lib/supabase/server";
 import { HeaderClient } from "./HeaderClient";
 
 export async function Header() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
+  let user = null;
   let profile = null;
-  if (user) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("first_name, role")
-      .eq("id", user.id)
-      .single();
-    profile = data;
+
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    user = data?.user ?? null;
+
+    if (user) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("first_name, role")
+        .eq("id", user.id)
+        .single();
+      profile = profileData;
+    }
+  } catch (error: any) {
+    if (error?.digest === "DYNAMIC_SERVER_USAGE") {
+      throw error;
+    }
+    console.warn("[Header] Impossible de récupérer la session utilisateur :", error);
   }
 
   return (
