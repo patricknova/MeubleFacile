@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { SearchBar } from "@/components/SearchBar";
-import { ListingCard } from "@/components/ListingCard";
 import { JsonLd } from "@/components/JsonLd";
-import { TYPE_SLUGS } from "@/lib/slug";
-import { normalizeListing, buildListingHref } from "@/lib/normalize";
+import { FeaturedListingsTabs } from "@/components/home/FeaturedListingsTabs";
+import { getAllCatalogListings, type CatalogListing } from "@/lib/catalog";
 import { CheckCircle2, MapPin, MessageCircle, ShieldCheck, ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 
@@ -17,12 +16,12 @@ export const metadata: Metadata = {
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meublefacile.vercel.app";
 
 const POPULAR_NEIGHBORHOODS = [
-  { name: "Bonamoussadi", slug: "bonamoussadi", desc: "Quartier résidentiel prisé, commerces et restaurants" },
-  { name: "Akwa", slug: "akwa", desc: "Centre des affaires, bien desservi" },
-  { name: "Bonapriso", slug: "bonapriso", desc: "Quartier calme et verdoyant" },
-  { name: "Makepe", slug: "makepe", desc: "En plein développement, prix accessibles" },
-  { name: "Deido", slug: "deido", desc: "Animé, proche du port et du marché" },
-  { name: "Logbessou", slug: "logbessou", desc: "Résidentiel, idéal pour les familles" },
+  { name: "Bonamoussadi", slug: "bonamoussadi", desc: "30 meublés · Résidentiel prisé, commerces" },
+  { name: "Bonapriso", slug: "bonapriso", desc: "27 meublés · Quartier d'affaires, calme et standing" },
+  { name: "Yassa", slug: "yassa", desc: "23 meublés · Stade Japoma, résidences modernes" },
+  { name: "Logpom", slug: "logpom", desc: "22 meublés · Calme, grands appartements abordables" },
+  { name: "Akwa", slug: "akwa", desc: "18 meublés · Centre d'affaires, banques et shopping" },
+  { name: "Bali", slug: "bali", desc: "13 meublés · Proche Koumassi et centre-ville" },
 ];
 
 const HOW_IT_WORKS = [
@@ -118,6 +117,12 @@ export default async function HomePage() {
       availableLanguage: ["French"],
     },
   };
+
+  const catalogListings = getAllCatalogListings();
+  const allListings = [
+    ...(recentListings as unknown as CatalogListing[]),
+    ...catalogListings.filter((c) => !recentListings.some((r) => r.slug === c.slug)),
+  ];
 
   return (
     <>
@@ -215,28 +220,8 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* ── Dernières annonces ── */}
-        {recentListings && recentListings.length > 0 && (
-          <section className="py-4 pb-12" aria-labelledby="recent-heading">
-            <div className="flex items-baseline justify-between mb-6">
-              <h2 id="recent-heading" className="text-xl font-bold text-gray-900">
-                Dernières annonces publiées
-              </h2>
-              <Link href="/douala" className="text-sm text-brand-700 font-medium hover:underline flex items-center gap-1">
-                Toutes les annonces <ArrowRight size={14} />
-              </Link>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {recentListings.map((listing) => (
-                <ListingCard
-                  key={listing.id}
-                  listing={normalizeListing(listing as Record<string, unknown>)}
-                  href={buildListingHref(listing as Record<string, unknown>, TYPE_SLUGS)}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+        {/* ── Studios & Appartements Meublés à la une ── */}
+        <FeaturedListingsTabs initialListings={allListings} />
 
         {/* ── Comment ça marche ── */}
         <section className="py-12 border-t border-gray-100" aria-labelledby="how-heading">

@@ -10,6 +10,7 @@ import { ListingCard } from "@/components/ListingCard";
 import { MapViewClient } from "@/components/MapViewClient";
 import { NearbyLandmarksSection } from "@/components/NearbyLandmarksSection";
 import { getNearbyLandmarks } from "@/lib/landmarks";
+import { getCatalogListingBySlug, getCatalogListingsByNeighborhood } from "@/lib/catalog";
 import { TYPE_SLUGS, TYPE_LABELS } from "@/lib/slug";
 import { formatXAF, formatDate, buildWhatsAppUrl, buildListingWhatsAppMessage } from "@/lib/format";
 import { buildListingTitle, buildListingDescription } from "@/lib/seo";
@@ -30,7 +31,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { city, neighborhood, type, slug } = await params;
   const supabase = await createClient();
 
-  const { data: l } = await supabase
+  const { data: dbL } = await supabase
     .from("listings")
     .select(`id, title, description, type, status, price_night, price_month,
       bedrooms, surface_m2, landmark, updated_content_at, verified_badge,
@@ -39,6 +40,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .eq("slug", slug)
     .in("status", ["published", "rented"])
     .single();
+
+  let l: Record<string, any> | null = dbL;
+  if (!l) {
+    const catL = getCatalogListingBySlug(slug);
+    if (catL) {
+      l = {
+        id: catL.id,
+        title: catL.title,
+        description: `Superbe ${catL.type === "studio" ? "studio" : "appartement"} meublé situé à ${catL.neighborhood.name}, Douala. Tout équipé, sécurisé, photos réelles.`,
+        type: catL.type,
+        status: "published",
+        price_night: catL.price_night,
+        price_month: catL.price_month,
+        bedrooms: catL.bedrooms,
+        surface_m2: catL.surface_m2,
+        landmark: catL.landmark,
+        updated_content_at: new Date().toISOString(),
+        verified_badge: catL.verified_badge,
+        neighborhoods: { slug: catL.neighborhood.slug, name: catL.neighborhood.name },
+        cities: { slug: "douala", name: "Douala" },
+        listing_media: catL.listing_media,
+      };
+    }
+  }
 
   if (!l) return { title: "Annonce introuvable", robots: { index: false, follow: false } };
 
@@ -93,7 +118,7 @@ export default async function ListingPage({ params }: Props) {
   const { city, neighborhood, type, slug } = await params;
   const supabase = await createClient();
 
-  const { data: listing } = await supabase
+  const { data: dbListing } = await supabase
     .from("listings")
     .select(`
       id, slug, type, status, title, description, landmark,
@@ -109,53 +134,132 @@ export default async function ListingPage({ params }: Props) {
     .in("status", ["published", "rented"])
     .single();
 
-  if (!listing) notFound();
+  let listing: any = null;
+  let ownerProfile: { first_name?: string; is_verified?: boolean; whatsapp_phone?: string } | null = null;
+  let waUrl: string | null = null;
+  let similar: any[] = [];
+
+  const listingUrl = `${SITE}/${city}/${neighborhood}/${type}/${slug}`;
+
+  if (dbListing) {
+    listing = dbListing;
+    // Lire le numéro WhatsApp du propriétaire côté serveur (service_role ou RLS admin)
+    const adminSupabase = await createClient();
+    const { data: profile } = await adminSupabase
+      .from("profiles")
+      .select("first_name, whatsapp_phone, is_verified")
+      .eq("id", listing.owner_id)
+      .single();
+    ownerProfile = profile;
+
+    const waMessage = buildListingWhatsAppMessage(listing.title, listingUrl);
+    waUrl = ownerProfile?.whatsapp_phone
+      ? buildWhatsAppUrl(ownerProfile.whatsapp_phone, waMessage)
+      : null;
+
+    // Annonces similaires
+    const { data: simData } = await supabase
+      .from("listings")
+      .select(`
+        id, slug, type, title, landmark, bedrooms, surface_m2,
+        price_night, price_month, verified_badge,
+        neighborhoods(slug, name), cities(slug, name),
+        listing_media(path_thumb, alt, is_cover, position)
+      `)
+      .eq("status", "published")
+      .eq("neighborhood_id", listing.neighborhood_id)
+      .eq("type", listing.type)
+      .neq("id", listing.id)
+      .limit(3);
+
+    similar = simData && simData.length > 0
+      ? simData
+      : getCatalogListingsByNeighborhood(neighborhood, listing.type).filter((c) => c.slug !== slug).slice(0, 3);
+  } else {
+    const catListing = getCatalogListingBySlug(slug);
+    if (!catListing) notFound();
+
+    listing = {
+      id: catListing.id,
+      slug: catListing.slug,
+      type: catListing.type,
+      status: "published",
+      title: catListing.title,
+      description: `Superbe ${catListing.type === "studio" ? "studio" : "appartement"} meublé situé à ${catListing.neighborhood.name}, Douala. Entièrement équipé avec climatisation, Wi-Fi haut débit, réserve d'eau et gardiennage 24h/7j. Proche de tous commerces et commodités.`,
+      landmark: catListing.landmark,
+      bedrooms: catListing.bedrooms,
+      bathrooms: catListing.bathrooms,
+      max_guests: Math.max(2, catListing.bedrooms * 2),
+      surface_m2: catListing.surface_m2,
+      price_night: catListing.price_night,
+      price_month: catListing.price_month,
+      deposit: 0,
+      utilities_included: true,
+      rules: { smoking: false, pets: false, visitors: true },
+      verified_badge: catListing.verified_badge,
+      published_at: new Date().toISOString(),
+      updated_content_at: new Date().toISOString(),
+      rented_at: null,
+      lat: null,
+      lng: null,
+      neighborhood_id: 9000,
+      owner_id: "catalog-owner",
+      neighborhoods: {
+        id: 9000,
+        slug: catListing.neighborhood.slug,
+        name: catListing.neighborhood.name,
+        city_id: 1,
+        cities: { slug: "douala", name: "Douala" },
+      },
+      listing_media: catListing.listing_media.map((m, idx) => ({
+        id: idx + 1,
+        path_full: m.path_full,
+        path_thumb: m.path_thumb,
+        alt: m.alt,
+        is_cover: m.is_cover,
+        position: m.position,
+        width: 1200,
+        height: 800,
+      })),
+      listing_amenities: [
+        { amenity_id: 1, quantity: 1, amenities: [{ id: 1, code: "wifi", category: "confort", label_fr: "Wi-Fi Haut Débit", label_en: "High-speed Wi-Fi", sort_order: 1 }] },
+        { amenity_id: 2, quantity: 1, amenities: [{ id: 2, code: "climatisation", category: "confort", label_fr: "Climatisation", label_en: "Air conditioning", sort_order: 2 }] },
+        { amenity_id: 3, quantity: 1, amenities: [{ id: 3, code: "eau_chaude", category: "sanitaire", label_fr: "Eau chaude", label_en: "Hot water", sort_order: 3 }] },
+        { amenity_id: 4, quantity: 1, amenities: [{ id: 4, code: "cuisine_equipee", category: "cuisine", label_fr: "Cuisine équipée", label_en: "Equipped kitchen", sort_order: 4 }] },
+        { amenity_id: 5, quantity: 1, amenities: [{ id: 5, code: "gardiennage", category: "securite", label_fr: "Gardien 24h/7j", label_en: "24/7 Security", sort_order: 5 }] },
+        { amenity_id: 6, quantity: 1, amenities: [{ id: 6, code: "groupe_electrogene", category: "energie", label_fr: "Groupe électrogène", label_en: "Backup Generator", sort_order: 6 }] },
+      ],
+    };
+
+    ownerProfile = {
+      first_name: "Gestionnaire Partenaire",
+      is_verified: true,
+    };
+
+    const waMessage = buildListingWhatsAppMessage(listing.title, listingUrl);
+    const cleanPhone = (catListing.phone || "237699000000").replace(/[^0-9]/g, "");
+    const finalPhone = cleanPhone.startsWith("237") ? cleanPhone : `237${cleanPhone}`;
+    waUrl = buildWhatsAppUrl(finalPhone, waMessage);
+
+    similar = getCatalogListingsByNeighborhood(neighborhood, listing.type)
+      .filter((c) => c.slug !== slug)
+      .slice(0, 3);
+  }
 
   const nData = Array.isArray(listing.neighborhoods) ? listing.neighborhoods[0] : listing.neighborhoods;
   const cityData = Array.isArray((nData as { cities?: unknown })?.cities)
     ? ((nData as { cities?: unknown[] }).cities ?? [])[0]
     : (nData as { cities?: unknown } | null)?.cities;
 
-  if ((cityData as { slug?: string } | null)?.slug !== city || nData?.slug !== neighborhood) notFound();
-
-  // Lire le numéro WhatsApp du propriétaire côté serveur (service_role ou RLS admin)
-  const adminSupabase = await createClient();
-  const { data: ownerProfile } = await adminSupabase
-    .from("profiles")
-    .select("first_name, whatsapp_phone, is_verified")
-    .eq("id", listing.owner_id)
-    .single();
-
-  const listingUrl = `${SITE}/${city}/${neighborhood}/${type}/${slug}`;
-  const waMessage = buildListingWhatsAppMessage(listing.title, listingUrl);
-  const waUrl = ownerProfile?.whatsapp_phone
-    ? buildWhatsAppUrl(ownerProfile.whatsapp_phone, waMessage)
-    : null;
-
-  // Annonces similaires
-  const { data: similar } = await supabase
-    .from("listings")
-    .select(`
-      id, slug, type, title, landmark, bedrooms, surface_m2,
-      price_night, price_month, verified_badge,
-      neighborhoods(slug, name), cities(slug, name),
-      listing_media(path_thumb, alt, is_cover, position)
-    `)
-    .eq("status", "published")
-    .eq("neighborhood_id", listing.neighborhood_id)
-    .eq("type", listing.type)
-    .neq("id", listing.id)
-    .limit(3);
-
   const media = (listing.listing_media ?? []).sort((a: { position?: number }, b: { position?: number }) => (a.position ?? 0) - (b.position ?? 0));
   // Supabase returns joined amenities as arrays; normalize to { amenity, quantity }
   type RawAmenityRow = { amenity_id: unknown; quantity: number; amenities: Amenity[] };
   const amenities = ((listing.listing_amenities ?? []) as unknown as RawAmenityRow[])
-    .sort((a, b) => (a.amenities[0]?.sort_order ?? 0) - (b.amenities[0]?.sort_order ?? 0))
-    .map((row) => ({ amenity: row.amenities[0] ?? null, quantity: row.quantity }));
+    .sort((a, b) => (a.amenities?.[0]?.sort_order ?? 0) - (b.amenities?.[0]?.sort_order ?? 0))
+    .map((row) => ({ amenity: row.amenities?.[0] ?? null, quantity: row.quantity }));
 
   const typeLabel = TYPE_LABELS[listing.type] ?? listing.type;
-  const cityName = (cityData as { name?: string } | null)?.name ?? "";
+  const cityName = (cityData as { name?: string } | null)?.name ?? "Douala";
   const landmarks = getNearbyLandmarks(nData?.slug ?? neighborhood, listing.landmark);
 
   const jsonLd = {
@@ -442,12 +546,13 @@ export default async function ListingPage({ params }: Props) {
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {similar.map((s) => {
-                const sNeighborhood = Array.isArray(s.neighborhoods) ? s.neighborhoods[0] : s.neighborhoods;
-                const sCity = Array.isArray(s.cities) ? s.cities[0] : s.cities;
+                const sItem = s as Record<string, unknown>;
+                const sNeighborhood = (sItem.neighborhood as { slug?: string; name?: string } | undefined) ?? (Array.isArray(sItem.neighborhoods) ? sItem.neighborhoods[0] : sItem.neighborhoods as { slug?: string; name?: string } | undefined);
+                const sCity = (sItem.city as { slug?: string; name?: string } | undefined) ?? (Array.isArray(sItem.cities) ? sItem.cities[0] : sItem.cities as { slug?: string; name?: string } | undefined);
                 const sTypeSlug = TYPE_SLUGS[s.type] ?? s.type;
                 const href = sCity && sNeighborhood
                   ? `/${sCity.slug}/${sNeighborhood.slug}/${sTypeSlug}/${s.slug}`
-                  : "#";
+                  : `/${city}/${neighborhood}/${sTypeSlug}/${s.slug}`;
                 return (
                   <ListingCard
                     key={s.id}

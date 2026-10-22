@@ -6,6 +6,7 @@ import { Pagination } from "@/components/Pagination";
 import { JsonLd } from "@/components/JsonLd";
 import { EmptyState } from "@/components/EmptyState";
 import { TYPE_SLUGS, TYPE_LABELS, SLUG_TO_TYPE } from "@/lib/slug";
+import { getCatalogListingsByNeighborhood, getCatalogNeighborhoodStats } from "@/lib/catalog";
 import { Home } from "lucide-react";
 import type { Metadata } from "next";
 
@@ -23,34 +24,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!listingType) return { title: "Type introuvable", robots: { index: false, follow: false } };
 
   const supabase = await createClient();
-  const { data: n } = await supabase
+  let n: any = null;
+  const { data: dbN } = await supabase
     .from("neighborhoods")
     .select("name, cities(name)")
     .eq("slug", neighborhood)
     .single();
 
+  if (dbN) {
+    n = dbN;
+  } else {
+    const catN = getCatalogNeighborhoodStats().find((s) => s.slug === neighborhood.toLowerCase());
+    if (catN) {
+      n = {
+        name: catN.name,
+        cities: { name: "Douala" },
+      };
+    }
+  }
+
   if (!n) return { title: "Quartier introuvable", robots: { index: false, follow: false } };
-  const cityName = Array.isArray(n.cities) ? n.cities[0]?.name : (n.cities as { name?: string } | null)?.name;
+  const cityName = Array.isArray(n.cities) ? n.cities[0]?.name : (n.cities as { name?: string } | null)?.name ?? "Douala";
   const typeLabel = TYPE_LABELS[listingType] ?? listingType;
   const url = `${SITE}/${city}/${neighborhood}/${type}`;
 
-  // Prix minimum pour le title
-  const { data: priceData } = await supabase
-    .from("listings")
-    .select("price_night")
-    .eq("status", "published")
-    .eq("type", listingType)
-    .order("price_night", { ascending: true })
-    .limit(1)
-    .single();
-
-  const priceStr = priceData?.price_night
-    ? ` – dès ${new Intl.NumberFormat("fr-CM").format(priceData.price_night)} FCFA`
-    : "";
-
   return {
-    title: `${typeLabel}s à ${n.name}, ${cityName}${priceStr} — MeubléFacile`,
-    description: `${(await supabase.from("listings").select("id", { count: "exact", head: true }).eq("status", "published").eq("type", listingType)).count ?? 0} ${typeLabel.toLowerCase()}s à ${n.name}. Annonces vérifiées avec photos, contactez le propriétaire sur WhatsApp.`,
+    title: `${typeLabel}s à ${n.name}, ${cityName} — MeubléFacile`,
+    description: `Découvrez notre sélection de ${typeLabel.toLowerCase()}s à ${n.name}. Annonces vérifiées avec photos, contactez le propriétaire sur WhatsApp.`,
     alternates: { canonical: url },
   };
 }
@@ -67,29 +67,34 @@ export default async function TypePage({ params, searchParams }: Props) {
 
   const supabase = await createClient();
 
-  const { data: nData } = await supabase
+  let nData: any = null;
+  const { data: dbNData } = await supabase
     .from("neighborhoods")
     .select("id, name, slug, intro, cities(id, name, slug)")
     .eq("slug", neighborhood)
     .single();
 
+  if (dbNData) {
+    nData = dbNData;
+  } else {
+    const catN = getCatalogNeighborhoodStats().find((s) => s.slug === neighborhood.toLowerCase());
+    if (catN) {
+      nData = {
+        id: 9000,
+        name: catN.name,
+        slug: catN.slug,
+        intro: `Trouvez votre ${TYPE_LABELS[listingType]?.toLowerCase() ?? "logement"} meublé à ${catN.name}, Douala. Photos réelles et contact WhatsApp direct.`,
+        cities: { id: 1, name: "Douala", slug: "douala" },
+      };
+    }
+  }
+
   if (!nData) notFound();
   const cityData = Array.isArray(nData.cities) ? nData.cities[0] : nData.cities;
   if (!cityData || (cityData as { slug?: string }).slug !== city) notFound();
 
-  // Count
-  const { count } = await supabase
-    .from("listings")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "published")
-    .eq("neighborhood_id", nData.id)
-    .eq("type", listingType);
-
-  const totalPages = Math.ceil((count ?? 0) / PER_PAGE);
-  const indexable = (count ?? 0) >= 3;
-
-  // Annonces
-  const { data: listings } = await supabase
+  // Annonces Supabase
+  const { data: dbListings } = await supabase
     .from("listings")
     .select(`
       id, slug, type, title, landmark, bedrooms, surface_m2,
@@ -102,8 +107,19 @@ export default async function TypePage({ params, searchParams }: Props) {
     .eq("neighborhood_id", nData.id)
     .eq("type", listingType)
     .order("verified_badge", { ascending: false })
-    .order("updated_content_at", { ascending: false })
-    .range((page - 1) * PER_PAGE, page * PER_PAGE - 1);
+    .order("updated_content_at", { ascending: false });
+
+  // Catalogue local de secours
+  const catListings = getCatalogListingsByNeighborhood(neighborhood, listingType);
+  const combinedListings = [
+    ...(dbListings ?? []),
+    ...catListings.filter((c) => !(dbListings ?? []).some((l) => l.slug === c.slug)),
+  ];
+
+  const totalCount = combinedListings.length;
+  const totalPages = Math.ceil(totalCount / PER_PAGE);
+  const listings = combinedListings.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const indexable = totalCount >= 3 && page <= 1;
 
   const typeLabel = TYPE_LABELS[listingType];
   const cityName = (cityData as { name: string }).name;
@@ -115,9 +131,20 @@ export default async function TypePage({ params, searchParams }: Props) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: `${typeLabel}s à ${nData.name}, ${cityName}`,
+    name: `${typeLabel}s à ${nData.name}`,
     url: `${SITE}/${city}/${neighborhood}/${type}`,
-    numberOfItems: count ?? 0,
+    numberOfItems: totalCount,
+    itemListElement: (listings ?? []).slice(0, 10).map((l, i) => {
+      const itemRecord = l as Record<string, unknown>;
+      const lNeighborhood = (itemRecord.neighborhood as { slug?: string } | undefined) ?? (Array.isArray(itemRecord.neighborhoods) ? itemRecord.neighborhoods[0] : itemRecord.neighborhoods);
+      const lCity = (itemRecord.city as { slug?: string } | undefined) ?? (Array.isArray(itemRecord.cities) ? itemRecord.cities[0] : itemRecord.cities);
+      return {
+        "@type": "ListItem",
+        position: (page - 1) * PER_PAGE + i + 1,
+        url: `${SITE}/${lCity?.slug ?? city}/${lNeighborhood?.slug ?? neighborhood}/${type}/${l.slug}`,
+        name: l.title,
+      };
+    }),
   };
 
   return (
@@ -141,9 +168,9 @@ export default async function TypePage({ params, searchParams }: Props) {
           {nData.intro && (
             <p className="mt-2 text-gray-600">{nData.intro}</p>
           )}
-          {count !== null && (
+          {totalCount > 0 && (
             <p className="mt-1 text-sm text-gray-400">
-              {count} annonce{count > 1 ? "s" : ""} disponible{count > 1 ? "s" : ""}
+              {totalCount} annonce{totalCount > 1 ? "s" : ""} disponible{totalCount > 1 ? "s" : ""}
             </p>
           )}
         </div>
@@ -152,12 +179,13 @@ export default async function TypePage({ params, searchParams }: Props) {
           <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {listings.map((listing) => {
-                const lNeighborhood = Array.isArray(listing.neighborhoods) ? listing.neighborhoods[0] : listing.neighborhoods;
-                const lCity = Array.isArray(listing.cities) ? listing.cities[0] : listing.cities;
+                const item = listing as Record<string, unknown>;
+                const lNeighborhood = (item.neighborhood as { slug?: string; name?: string } | undefined) ?? (Array.isArray(item.neighborhoods) ? item.neighborhoods[0] : item.neighborhoods as { slug?: string; name?: string } | undefined);
+                const lCity = (item.city as { slug?: string; name?: string } | undefined) ?? (Array.isArray(item.cities) ? item.cities[0] : item.cities as { slug?: string; name?: string } | undefined);
                 const typeSlug = TYPE_SLUGS[listing.type] ?? listing.type;
                 const href = lCity && lNeighborhood
                   ? `/${lCity.slug}/${lNeighborhood.slug}/${typeSlug}/${listing.slug}`
-                  : "#";
+                  : `/${city}/${neighborhood}/${typeSlug}/${listing.slug}`;
                 return (
                   <ListingCard
                     key={listing.id}

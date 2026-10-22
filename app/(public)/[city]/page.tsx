@@ -5,6 +5,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { ListingCard } from "@/components/ListingCard";
 import { JsonLd } from "@/components/JsonLd";
 import { TYPE_SLUGS, TYPE_LABELS } from "@/lib/slug";
+import { getCatalogNeighborhoodStats, getAllCatalogListings } from "@/lib/catalog";
 import { MapPin, ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 
@@ -21,10 +22,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .eq("slug", city)
     .single();
 
-  if (!data) return { title: "Ville introuvable", robots: { index: false, follow: false } };
+  const cityName = data?.name ?? (city.toLowerCase() === "douala" ? "Douala" : city);
   return {
-    title: `Logements meublés à ${data.name} — MeubléFacile`,
-    description: `Trouvez un studio ou appartement meublé à ${data.name}. Annonces vérifiées avec photos, contactez le propriétaire sur WhatsApp.`,
+    title: `Logements meublés à ${cityName} — MeubléFacile`,
+    description: `Trouvez un studio ou appartement meublé à ${cityName}. Plus de 150 annonces vérifiées par quartier (Bonapriso, Yassa, Bonamoussadi...) avec photos HD et WhatsApp direct.`,
     alternates: { canonical: `/${city}` },
   };
 }
@@ -35,24 +36,63 @@ export default async function CityPage({ params }: Props) {
   const { city } = await params;
   const supabase = await createClient();
 
-  const { data: cityData } = await supabase
+  const { data: dbCity } = await supabase
     .from("cities")
     .select("id, name, slug")
     .eq("slug", city)
     .eq("active", true)
     .single();
 
+  const cityData = dbCity ?? (city.toLowerCase() === "douala" ? { id: 1, name: "Douala", slug: "douala" } : null);
   if (!cityData) notFound();
 
-  // Quartiers avec nombre d'annonces
-  const { data: neighborhoods } = await supabase
+  // Quartiers Supabase
+  const { data: dbNeighborhoods } = await supabase
     .from("neighborhoods")
     .select("id, slug, name, intro, lat, lng")
     .eq("city_id", cityData.id)
     .order("name");
 
+  // Fusionner avec les statistiques du catalogue (pour inclure Yassa, Makepe, etc.)
+  const catStats = getCatalogNeighborhoodStats();
+  const allNeighborhoodsMap = new Map<string, { id: number | string; slug: string; name: string; intro?: string; count?: number; studios?: number; apartments?: number }>();
+
+  // D'abord les quartiers de la base
+  for (const n of dbNeighborhoods ?? []) {
+    const stat = catStats.find((s) => s.slug === n.slug);
+    allNeighborhoodsMap.set(n.slug, {
+      id: n.id,
+      slug: n.slug,
+      name: n.name,
+      intro: n.intro ?? undefined,
+      count: stat?.count ?? 0,
+      studios: stat?.studios ?? 0,
+      apartments: stat?.apartments ?? 0,
+    });
+  }
+
+  // Ajouter les quartiers du catalogue non présents en DB (comme Yassa)
+  for (const stat of catStats) {
+    if (!allNeighborhoodsMap.has(stat.slug)) {
+      allNeighborhoodsMap.set(stat.slug, {
+        id: `cat-${stat.slug}`,
+        slug: stat.slug,
+        name: stat.name,
+        intro: `Découvrez les meilleurs appartements et studios meublés à ${stat.name}.`,
+        count: stat.count,
+        studios: stat.studios,
+        apartments: stat.apartments,
+      });
+    }
+  }
+
+  const sortedNeighborhoods = Array.from(allNeighborhoodsMap.values()).sort((a, b) => {
+    // Trier par nombre d'annonces décroissant
+    return (b.count ?? 0) - (a.count ?? 0);
+  });
+
   // Annonces récentes de la ville
-  const { data: listings } = await supabase
+  const { data: dbListings } = await supabase
     .from("listings")
     .select(`
       id, slug, type, title, landmark, bedrooms, surface_m2,
@@ -66,6 +106,13 @@ export default async function CityPage({ params }: Props) {
     .order("published_at", { ascending: false })
     .limit(9);
 
+  // Compléter avec les annonces du catalogue local
+  const catListings = getAllCatalogListings().slice(0, 12);
+  const combinedListings = [
+    ...(dbListings ?? []),
+    ...catListings.filter((c) => !(dbListings ?? []).some((l) => l.slug === c.slug)),
+  ].slice(0, 12);
+
   const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meublefacile.vercel.app";
 
   const jsonLd = {
@@ -73,15 +120,16 @@ export default async function CityPage({ params }: Props) {
     "@type": "ItemList",
     name: `Logements meublés à ${cityData.name}`,
     url: `${SITE}/${city}`,
-    numberOfItems: listings?.length ?? 0,
-    itemListElement: (listings ?? []).slice(0, 10).map((l, i) => {
-      const neighborhood = Array.isArray(l.neighborhoods) ? l.neighborhoods[0] : l.neighborhoods;
-      const citySlug = Array.isArray(l.cities) ? l.cities[0]?.slug : (l.cities as { slug?: string } | null)?.slug;
+    numberOfItems: combinedListings.length,
+    itemListElement: combinedListings.slice(0, 10).map((l, i) => {
+      const item = l as Record<string, unknown>;
+      const neighborhood = (item.neighborhood as { slug?: string } | undefined) ?? (Array.isArray(item.neighborhoods) ? item.neighborhoods[0] : item.neighborhoods as { slug?: string } | undefined);
+      const citySlug = (item.city as { slug?: string } | undefined)?.slug ?? (Array.isArray(item.cities) ? item.cities[0]?.slug : (item.cities as { slug?: string } | null)?.slug) ?? city;
       const typeSlug = TYPE_SLUGS[l.type] ?? l.type;
       return {
         "@type": "ListItem",
         position: i + 1,
-        url: `${SITE}/${citySlug}/${neighborhood?.slug}/${typeSlug}/${l.slug}`,
+        url: `${SITE}/${citySlug}/${neighborhood?.slug ?? "douala"}/${typeSlug}/${l.slug}`,
         name: l.title,
       };
     }),
@@ -103,15 +151,15 @@ export default async function CityPage({ params }: Props) {
         </div>
 
         {/* Quartiers */}
-        {neighborhoods && neighborhoods.length > 0 && (
+        {sortedNeighborhoods && sortedNeighborhoods.length > 0 && (
           <section aria-labelledby="neighborhoods-title" className="mb-12">
             <h2 id="neighborhoods-title" className="text-lg font-bold text-gray-900 mb-4">
-              Quartiers de {cityData.name}
+              Quartiers de {cityData.name} ({sortedNeighborhoods.length} quartiers)
             </h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {neighborhoods.map((n) => (
+              {sortedNeighborhoods.map((n) => (
                 <Link
-                  key={n.id}
+                  key={n.slug}
                   href={`/${city}/${n.slug}`}
                   className="group flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 hover:border-brand-300 hover:bg-brand-50 transition-all hover:shadow-sm"
                 >
@@ -119,9 +167,15 @@ export default async function CityPage({ params }: Props) {
                     <MapPin size={15} className="text-brand-700" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">{n.name}</p>
-                    {n.intro && (
-                      <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{n.intro}</p>
+                    <p className="text-sm font-semibold text-gray-900 group-hover:text-brand-800 transition-colors">{n.name}</p>
+                    {n.count && n.count > 0 ? (
+                      <p className="text-xs font-medium text-brand-600 mt-0.5">
+                        {n.count} logement{n.count > 1 ? "s" : ""}
+                        {n.apartments ? ` · ${n.apartments} appt${n.apartments > 1 ? "s" : ""}` : ""}
+                        {n.studios ? ` · ${n.studios} studio${n.studios > 1 ? "s" : ""}` : ""}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">Voir les disponibilités</p>
                     )}
                   </div>
                 </Link>
@@ -142,28 +196,32 @@ export default async function CityPage({ params }: Props) {
                 href={`/${city}/bonamoussadi/${TYPE_SLUGS[type]}`}
                 className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 transition-all"
               >
-                {label}s
+                {label}s à Douala
               </Link>
             ))}
           </div>
         </section>
 
         {/* Annonces récentes */}
-        {listings && listings.length > 0 && (
+        {combinedListings && combinedListings.length > 0 && (
           <section aria-labelledby="recent-title">
             <div className="flex items-baseline justify-between mb-4">
               <h2 id="recent-title" className="text-lg font-bold text-gray-900">
-                Annonces récentes à {cityData.name}
+                Logements meublés disponibles à {cityData.name}
               </h2>
+              <span className="text-sm text-gray-500 font-medium">
+                {combinedListings.length} annonces sélectionnées
+              </span>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {listings.map((listing) => {
-                const neighborhood = Array.isArray(listing.neighborhoods) ? listing.neighborhoods[0] : listing.neighborhoods;
-                const listingCity = Array.isArray(listing.cities) ? listing.cities[0] : listing.cities;
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {combinedListings.map((listing) => {
+                const item = listing as Record<string, unknown>;
+                const neighborhood = (item.neighborhood as { slug?: string; name?: string } | undefined) ?? (Array.isArray(item.neighborhoods) ? item.neighborhoods[0] : item.neighborhoods as { slug?: string; name?: string } | undefined);
+                const listingCity = (item.city as { slug?: string; name?: string } | undefined) ?? (Array.isArray(item.cities) ? item.cities[0] : item.cities as { slug?: string; name?: string } | undefined);
                 const typeSlug = TYPE_SLUGS[listing.type] ?? listing.type;
                 const href = listingCity && neighborhood
                   ? `/${listingCity.slug}/${neighborhood.slug}/${typeSlug}/${listing.slug}`
-                  : "#";
+                  : `/${city}/${neighborhood?.slug ?? "douala"}/${typeSlug}/${listing.slug}`;
                 return (
                   <ListingCard
                     key={listing.id}
@@ -181,7 +239,7 @@ export default async function CityPage({ params }: Props) {
           </section>
         )}
 
-        {(!listings || listings.length === 0) && (
+        {(!combinedListings || combinedListings.length === 0) && (
           <div className="rounded-xl border border-dashed border-gray-200 py-16 text-center">
             <p className="text-gray-500">Aucune annonce publiée à {cityData.name} pour l&apos;instant.</p>
             <Link href="/deposer" className="mt-4 inline-flex items-center gap-1.5 text-sm text-brand-700 font-medium hover:underline">

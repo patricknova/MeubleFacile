@@ -142,6 +142,14 @@
       - Ajout de l'accès direct « Blog & Guides » dans le Header de navigation.
     - **Validation de Build** : 26 routes compilées avec succès en SSG/SSR sans aucune erreur TypeScript ou linting.
 
+12. **Affichage Dynamique des Logements par Quartier & Showcase à l'Accueil (Studios & Appartements Meublés)** :
+    - **Catalogue Unifié Hybride ([lib/catalog.ts](file:///e:/digitalex%20meuble%20app/meublefacile/lib/catalog.ts) & [lib/catalog-data.json](file:///e:/digitalex%20meuble%20app/meublefacile/lib/catalog-data.json))** : Unification et normalisation des 156+ logements meublés réels de Douala extraits de Google Maps (Bonamoussadi: 30, Bonapriso: 27, Yassa: 23, Logpom: 22, Akwa: 18, Bali: 13, Deido: 9, Ndogbong: 6, Makepe: 4, Kotto: 4). Fonctionnement hybride résilient combinant les données Supabase et le catalogue local.
+    - **Showcase Interactif Accueil ([components/home/FeaturedListingsTabs.tsx](file:///e:/digitalex%20meuble%20app/meublefacile/components/home/FeaturedListingsTabs.tsx))** : Intégration sur la page d'accueil d'onglets de filtrage dynamique sans rechargement de page (*Tous à la une, Studios meublés, Appartements meublés, Bonapriso, Yassa, Bonamoussadi, Akwa*). Raccourcis de recherche rapides vers les requêtes populaires par quartier et type.
+    - **Pages Catalogue par Quartier & Type ([app/(public)/[city]/[neighborhood]/page.tsx](file:///e:/digitalex%20meuble%20app/meublefacile/app/(public)/[city]/[neighborhood]/page.tsx) & [app/(public)/[city]/[neighborhood]/[type]/page.tsx](file:///e:/digitalex%20meuble%20app/meublefacile/app/(public)/[city]/[neighborhood]/[type]/page.tsx))** : Support exhaustif de tous les quartiers (incluant Yassa, Denver, etc.), filtrage direct studios/appartements, pagination, et balisage Schema.org `ItemList`.
+    - **Fiches Détail Résilientes ([app/(public)/[city]/[neighborhood]/[type]/[slug]/page.tsx](file:///e:/digitalex%20meuble%20app/meublefacile/app/(public)/[city]/[neighborhood]/[type]/[slug]/page.tsx))** : Rendu et métadonnées SEO pour l'ensemble des 156+ annonces avec galeries photos HD, points de repère à proximité, recommandations de logements similaires dans le même quartier, et bouton d'action WhatsApp direct pré-formaté.
+    - **Page Ville Dynamique ([app/(public)/[city]/page.tsx](file:///e:/digitalex%20meuble%20app/meublefacile/app/(public)/[city]/page.tsx))** : Cartes des quartiers enrichies affichant le nombre exact de logements disponibles (avec décompte appartements vs studios).
+    - **Validation de Build** : `npx tsc --noEmit` validé avec 0 erreur (code de sortie 0) et `npm run build` exécuté avec succès.
+
 ## 🧪 Résultats des Tests E2E — Parcours Utilisateur (03-App-Flow)
 
 Un test complet de l'application en cours d'exécution sur le serveur de développement (`http://localhost:3000`) a été effectué avec enregistrement de session :
