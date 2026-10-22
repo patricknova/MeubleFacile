@@ -95,10 +95,9 @@ export function MapView({ lat, lng, title, approximate = true }: MapViewProps) {
         }
         mapInstanceRef.current = null;
       }
-      if (mapRef.current) {
-        const targetEl = mapRef.current as HTMLDivElement & { _leaflet_id?: number | null };
-        if (targetEl._leaflet_id) {
-          targetEl._leaflet_id = null;
+      if (container) {
+        if (container._leaflet_id) {
+          container._leaflet_id = null;
         }
       }
     };

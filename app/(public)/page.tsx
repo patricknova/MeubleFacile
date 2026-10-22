@@ -52,7 +52,7 @@ export default async function HomePage() {
     cities: { slug: string } | null;
   }> = [];
 
-  let recentListings: any[] = [];
+  let recentListings: Record<string, unknown>[] = [];
 
   try {
     const supabase = await createClient();
@@ -86,8 +86,8 @@ export default async function HomePage() {
     if (!lError && lData) {
       recentListings = lData;
     }
-  } catch (error: any) {
-    if (error?.digest === "DYNAMIC_SERVER_USAGE") {
+  } catch (error: unknown) {
+    if (typeof error === "object" && error !== null && "digest" in error && (error as { digest: string }).digest === "DYNAMIC_SERVER_USAGE") {
       throw error;
     }
     console.warn("[HomePage] Erreur lors de la récupération des données :", error);

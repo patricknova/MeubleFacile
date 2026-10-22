@@ -329,7 +329,7 @@ async function scrapePlaceDetails(page, placeUrl, defaultNeighborhood) {
       await page.keyboard.press("Escape").catch(() => {});
       await page.waitForTimeout(800);
     }
-  } catch (err) {
+  } catch {
     // Poursuite si erreur photo
   }
 
@@ -397,7 +397,7 @@ async function scrapePlaceDetails(page, placeUrl, defaultNeighborhood) {
         await page.waitForTimeout(900);
       }
     }
-  } catch (err) {
+  } catch {
     // Poursuite si erreur avis
   }
 

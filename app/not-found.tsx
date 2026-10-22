@@ -13,7 +13,7 @@ export default function NotFound() {
           Page introuvable
         </h1>
         <p className="text-sm text-gray-600 mb-6">
-          Le logement, le quartier ou la page que vous recherchez n'existe pas ou a été déplacé.
+          Le logement, le quartier ou la page que vous recherchez n&apos;existe pas ou a été déplacé.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">

@@ -5,7 +5,6 @@ import type { Metadata } from "next";
 import {
   Clock,
   Calendar,
-  Share2,
   CheckCircle2,
   AlertTriangle,
   ArrowLeft,
@@ -225,10 +224,10 @@ export default async function BlogPostPage({ params }: Props) {
           {/* Encart Manifeste S.C.A */}
           <div className="mb-10 rounded-2xl bg-gradient-to-r from-brand-900 to-gray-900 p-6 text-white shadow-md">
             <p className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-1">
-              La Règle d'or MeubléFacile à Douala
+              La Règle d&apos;or MeubléFacile à Douala
             </p>
             <p className="text-sm sm:text-base font-medium leading-snug">
-              Ne réservez jamais un appartement sur la seule promesse de belles photos. Exigez la confirmation formelle de l'inverseur automatique, de la réserve d'eau avec surpresseur et du débit réel.
+              Ne réservez jamais un appartement sur la seule promesse de belles photos. Exigez la confirmation formelle de l&apos;inverseur automatique, de la réserve d&apos;eau avec surpresseur et du débit réel.
             </p>
           </div>
 

@@ -26,7 +26,7 @@ export default function GlobalError({
           Une erreur temporaire est survenue
         </h1>
         <p className="text-sm text-gray-600 mb-6">
-          Nous n'avons pas pu charger cette page. Cela peut être dû à un rafraîchissement des services ou à une connexion instable.
+          Nous n&apos;avons pas pu charger cette page. Cela peut être dû à un rafraîchissement des services ou à une connexion instable.
         </p>
 
         {process.env.NODE_ENV === "development" && error.message && (
@@ -48,7 +48,7 @@ export default function GlobalError({
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <Home size={16} />
-            Retour à l'accueil
+            Retour à l&apos;accueil
           </Link>
         </div>
       </div>

@@ -19,8 +19,8 @@ export async function Header() {
         .single();
       profile = profileData;
     }
-  } catch (error: any) {
-    if (error?.digest === "DYNAMIC_SERVER_USAGE") {
+  } catch (error: unknown) {
+    if (typeof error === "object" && error !== null && "digest" in error && (error as { digest: string }).digest === "DYNAMIC_SERVER_USAGE") {
       throw error;
     }
     console.warn("[Header] Impossible de récupérer la session utilisateur :", error);

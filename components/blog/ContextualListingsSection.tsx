@@ -269,7 +269,7 @@ export function ContextualListingsSection({ post, citySlug = "douala" }: Props) 
         <div className="flex items-center gap-2">
           <CheckCircle2 className="text-brand-700 shrink-0" size={18} />
           <span>
-            <strong>Garantie Sérénité MeubléFacile :</strong> En cas de panne avérée de groupe ou d'eau non résolue sous 2h, nous prenons en charge votre relogement immédiat.
+            <strong>Garantie Sérénité MeubléFacile :</strong> En cas de panne avérée de groupe ou d&apos;eau non résolue sous 2h, nous prenons en charge votre relogement immédiat.
           </span>
         </div>
         <Link
