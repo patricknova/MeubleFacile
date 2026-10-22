@@ -230,7 +230,7 @@ export default async function HomePage() {
           </h2>
           <div className="grid gap-8 sm:grid-cols-3">
             {HOW_IT_WORKS.map(({ icon: Icon, title, desc }, i) => (
-              <div key={title} className="flex flex-col items-center text-center">
+              <div key={i} className="flex flex-col items-center text-center">
                 <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-100 text-brand-700">
                   <Icon size={26} />
                 </div>
