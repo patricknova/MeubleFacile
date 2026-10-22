@@ -1,7 +1,7 @@
 # 📊 Tableau de Suivi de Progression — MeubléFacile
 
-> **Dernière mise à jour** : 21 Octobre 2026  
-> **Statut global du build** : ✅ `npm run build` réussi sans erreurs ni avertissements ESLint / TypeScript.
+> **Dernière mise à jour** : 22 Octobre 2026  
+> **Statut global du build** : ✅ `npm run build` réussi sans erreurs ni avertissements ESLint / TypeScript (26 routes SSG/SSR générées).
 
 ---
 
@@ -116,6 +116,32 @@
      - Destruction sécurisée (`mapInstance.remove()`) dans le hook de cleanup `useEffect` avec protection `try/catch`.
    - **Validation E2E** : Chargement et actualisation de la page de détail sans aucune erreur console ni overlay, carte interactive pleinement opérationnelle.
 
+10. **Moteur de Scraping Google Maps Douala (Playwright & Pipeline d'Ingestion)** :
+    - Installation de Playwright Chromium pour l'automatisation de navigateur sans dépendance à l'API payante Google Places.
+    - Création du script [scripts/scrape-douala-maps.mjs](file:///e:/digitalex%20meuble%20app/meublefacile/scripts/scrape-douala-maps.mjs) :
+      - Balayage géographique par quartier (Bonapriso, Akwa, Bonamoussadi, Makepe, Denver, Kotto, Bali, Deido, etc.).
+      - Extraction des coordonnées GPS (Lat, Lng) directement depuis les URLs cartographiques.
+      - Extraction des coordonnées de contact (Téléphone / WhatsApp local camerounais).
+      - Récupération de la galerie de photos et suréchantillonnage d'URL vers la Haute Définition Google CDN (`s1600`).
+      - Dépliage et extraction intégrale des avis clients (auteurs, notes étoiles, dates, texte des commentaires, réponses).
+      - Export multi-format : `scraped_data/meubles_douala.json` et `scraped_data/meubles_douala.csv`.
+    - Création du convertisseur SQL Supabase [scripts/import-scraped-to-supabase.mjs](file:///e:/digitalex%20meuble%20app/meublefacile/scripts/import-scraped-to-supabase.mjs) générant automatiquement `supabase/seed_scraped_meubles.sql` pour alimenter le catalogue de MeubléFacile.
+    - Ajout des raccourcis d'exécution dans `package.json` :
+      - `npm run scrape:maps` : extraction globale sur l'ensemble des quartiers de Douala.
+      - `npm run scrape:maps:test` : test rapide ciblé sur un échantillon de Bonapriso.
+      - `npm run import:scraped` : compilation des données extraites en instructions SQL d'insertion pour Supabase.
+
+11. **Blog Éditorial S.C.A & Moteur de Recommandations Contextuelles ([lib/blog.ts](file:///e:/digitalex%20meuble%20app/meublefacile/lib/blog.ts))** :
+    - **Positionnement de marque différenciant** : Prisme **Sécurité - Connexion - Autonomie** (S.C.A) pour captiver en priorité la diaspora, les expatriés et les voyageurs d'affaires (lutte contre les délestages Eneo, coupures d'eau Camwater, débits lents et insécurité).
+    - **Composant de Recommandations Contextuelles ([components/blog/ContextualListingsSection.tsx](file:///e:/digitalex%20meuble%20app/meublefacile/components/blog/ContextualListingsSection.tsx))** : Intégration dans chaque article de blog d'une sélection dédiée d'appartements et studios meublés cités en rapport direct avec le sujet (badges S.C.A, tarifs XAF, boutons de réservation directe WhatsApp et consultation).
+    - **Maillage interne & Hyperliens** : Liens contextuels profonds insérés dans le corps des articles orientant directement les lecteurs vers les pages de recherche par quartier et type (`/douala/bonapriso/studio-meuble`, etc.).
+    - **Architecture SEO & GEO structurée** :
+      - Page catalogue [app/(public)/blog/page.tsx](file:///e:/digitalex%20meuble%20app/meublefacile/app/%28public%29/blog/page.tsx) avec filtres thématiques.
+      - Fiches articles [app/(public)/blog/[slug]/page.tsx](file:///e:/digitalex%20meuble%20app/meublefacile/app/%28public%29/blog/%5Bslug%5D/page.tsx) avec balisage Schema.org JSON-LD `BlogPosting` et `BreadcrumbList`.
+      - Indexation dynamique des articles dans le [app/sitemap.ts](file:///e:/digitalex%20meuble%20app/meublefacile/app/sitemap.ts).
+      - Ajout de l'accès direct « Blog & Guides » dans le Header de navigation.
+    - **Validation de Build** : 26 routes compilées avec succès en SSG/SSR sans aucune erreur TypeScript ou linting.
+
 ## 🧪 Résultats des Tests E2E — Parcours Utilisateur (03-App-Flow)
 
 Un test complet de l'application en cours d'exécution sur le serveur de développement (`http://localhost:3000`) a été effectué avec enregistrement de session :
@@ -146,8 +172,10 @@ Un test complet de l'application en cours d'exécution sur le serveur de dévelo
 ## 📌 Action Requise pour les Données Réelles
 
 - **Base de données Supabase** :
-  Le projet Supabase distant (`https://zpaugwiawqgheozrjidk.supabase.co`) attend l'exécution de ces deux fichiers :
-  1. Exécuter le fichier [supabase/migrations/001_mvp_schema.sql](file:///e:/digitalex%20meuble%20app/meublefacile/supabase/migrations/001_mvp_schema.sql) dans le **SQL Editor** de votre Dashboard Supabase (corrigé pour l'erreur 42P17 via trigger FTS dédié).
-  2. Exécuter le fichier [supabase/seed.sql](file:///e:/digitalex%20meuble%20app/meublefacile/supabase/seed.sql) (corrigé pour les erreurs 42P10 et 23503 via résolution dynamique de city_id : insère la ville de Douala, les 12 quartiers, les 40 équipements, un compte bailleur vérifié, et 8 annonces réelles avec galeries photos HD, coordonnées GPS et repères Google Maps).
+  Le projet Supabase distant (`https://zpaugwiawqgheozrjidk.supabase.co`) attend l'exécution de ces fichiers :
+  1. Exécuter le fichier [supabase/migrations/001_mvp_schema.sql](file:///e:/digitalex%20meuble%20app/meublefacile/supabase/migrations/001_mvp_schema.sql) dans le **SQL Editor** de votre Dashboard Supabase.
+  2. Exécuter le fichier [supabase/seed.sql](file:///e:/digitalex%20meuble%20app/meublefacile/supabase/seed.sql) (insère la ville de Douala, les 12 quartiers, les 40 équipements, un compte bailleur vérifié, et 8 annonces initiales).
+  3. Lancer `npm run scrape:maps` pour scraper les annonces Google Maps de Douala, puis `npm run import:scraped` pour insérer tous les logements meublés réels de Douala dans Supabase.
+
 
 

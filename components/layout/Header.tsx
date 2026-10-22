@@ -52,6 +52,13 @@ export async function Header() {
           <Link href="/douala/bonamoussadi/appartement-meuble" className="hover:text-brand-700 transition-colors">
             Appartements
           </Link>
+          <Link
+            href="/blog"
+            className="hover:text-brand-700 transition-colors font-semibold text-gray-800 flex items-center gap-1.5"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Blog & Guides
+          </Link>
         </nav>
 
         {/* Actions droite */}

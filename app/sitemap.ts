@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { TYPE_SLUGS } from "@/lib/slug";
+import { getAllPosts } from "@/lib/blog";
 import type { MetadataRoute } from "next";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meublefacile.vercel.app";
@@ -20,6 +21,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .order("updated_content_at", { ascending: false })
       .limit(500),
   ]);
+
+  const blogPosts = getAllPosts();
+  const blogPages: MetadataRoute.Sitemap = [
+    { url: `${SITE}/blog`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
+    ...blogPosts.map((p) => ({
+      url: `${SITE}/blog/${p.slug}`,
+      lastModified: new Date(p.updatedAt || p.publishedAt),
+      changeFrequency: "weekly" as const,
+      priority: 0.85,
+    })),
+  ];
 
   const staticPages: MetadataRoute.Sitemap = [
     { url: `${SITE}/`, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
@@ -72,5 +84,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     };
   });
 
-  return [...staticPages, ...cityPages, ...neighborhoodPages, ...listingPages];
+  return [...staticPages, ...blogPages, ...cityPages, ...neighborhoodPages, ...listingPages];
 }
