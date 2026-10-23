@@ -1,6 +1,6 @@
 # 📊 Tableau de Suivi de Progression — MeubléFacile
 
-> **Dernière mise à jour** : 22 Octobre 2026  
+> **Dernière mise à jour** : 23 Octobre 2026  
 > **Statut global du build** : ✅ `npm run build` réussi sans erreurs ni avertissements ESLint / TypeScript (26 routes SSG/SSR générées).
 
 ---
@@ -185,5 +185,15 @@ Un test complet de l'application en cours d'exécution sur le serveur de dévelo
   2. Exécuter le fichier [supabase/seed.sql](file:///e:/digitalex%20meuble%20app/meublefacile/supabase/seed.sql) (insère la ville de Douala, les 12 quartiers, les 40 équipements, un compte bailleur vérifié, et 8 annonces initiales).
   3. Lancer `npm run scrape:maps` pour scraper les annonces Google Maps de Douala, puis `npm run import:scraped` pour insérer tous les logements meublés réels de Douala dans Supabase.
 
+---
 
+## 📱 Outreach WhatsApp — Contact des Propriétaires
+
+- [x] **Script d'extraction** : [`scripts/generate-wa-outreach.mjs`](file:///e:/digitalex%20meuble%20app/meublefacile/scripts/generate-wa-outreach.mjs) — extrait et déduplique les contacts du catalogue
+- [x] **Page HTML interactive** : [`scripts/outreach/wa-outreach.html`](file:///e:/digitalex%20meuble%20app/meublefacile/scripts/outreach/wa-outreach.html) — tableau de bord avec :
+  - Liens `wa.me` cliquables avec message personnalisé pré-rempli pour chaque propriétaire
+  - Suivi du statut (En attente / Envoyé / Répondu / Ignoré) persisté en `localStorage`
+  - Barre de progression et statistiques en temps réel
+  - Filtres par statut et recherche par nom/quartier/numéro
+- **Statistiques** : 156 annonces → **92 contacts uniques** (3 propriétaires multi-biens)
 
