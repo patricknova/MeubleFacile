@@ -13,10 +13,18 @@ const CATALOG_PATH = resolve(__dirname, "../lib/catalog-data.json");
 const OUTPUT_DIR = resolve(__dirname, "outreach");
 const OUTPUT_PATH = resolve(OUTPUT_DIR, "wa-outreach.html");
 
-const SITE_URL = "https://meublefacile.vercel.app";
+const DEFAULT_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://meublefacile.vercel.app";
 
 // ── Ton nom (à personnaliser) ──
 const FOUNDER_NAME = "Patrick"; // ← Change ton prénom ici
+
+// ── Mapping type d'annonce → slug URL français officiel ──
+const TYPE_SLUGS = {
+  studio: "studio-meuble",
+  apartment: "appartement-meuble",
+  room: "chambre-meublee",
+  duplex: "duplex-meuble",
+};
 
 // ── Charger le catalogue ──
 const catalog = JSON.parse(readFileSync(CATALOG_PATH, "utf-8"));
@@ -33,7 +41,8 @@ for (const listing of catalog) {
   if (!listing.phone) continue;
 
   const phone = normalizePhone(listing.phone);
-  const listingUrl = `${SITE_URL}/douala/${listing.neighborhood.slug}/${listing.type}/${listing.slug}`;
+  const typeSlug = TYPE_SLUGS[listing.type] || listing.type;
+  const listingRelativePath = `/douala/${listing.neighborhood.slug}/${typeSlug}/${listing.slug}`;
 
   if (!contactsMap.has(phone)) {
     contactsMap.set(phone, {
@@ -46,9 +55,10 @@ for (const listing of catalog) {
   contactsMap.get(phone).listings.push({
     title: listing.title,
     type: listing.type,
+    typeSlug,
     neighborhood: listing.neighborhood.name,
     neighborhoodSlug: listing.neighborhood.slug,
-    url: listingUrl,
+    relativePath: listingRelativePath,
     slug: listing.slug,
     coverThumb: listing.listing_media?.[0]?.path_thumb || "",
   });
@@ -58,7 +68,7 @@ const contacts = Array.from(contactsMap.values()).sort(
   (a, b) => b.listings.length - a.listings.length
 );
 
-console.log(`\\n📊 Résultats :`);
+console.log(`\n📊 Résultats :`);
 console.log(`   Total annonces : ${catalog.length}`);
 console.log(`   Annonces avec téléphone : ${catalog.filter((l) => l.phone).length}`);
 console.log(`   Contacts uniques : ${contacts.length}`);
@@ -74,19 +84,8 @@ function getSegment(contact) {
   return { tier: "agence", label: "🏗️ Agence", color: "#9333ea" };
 }
 
-// ── Collecter les quartiers uniques d'un contact ──
-function getUniqueNeighborhoods(contact) {
-  const map = new Map();
-  for (const l of contact.listings) {
-    if (!map.has(l.neighborhood)) {
-      map.set(l.neighborhood, l);
-    }
-  }
-  return Array.from(map.values());
-}
-
 // ── Générer le message WhatsApp personnalisé selon le segment ──
-function buildMessage(contact) {
+function buildMessage(contact, siteUrl) {
   const nbBiens = contact.listings.length;
   const segment = getSegment(contact);
 
@@ -94,7 +93,7 @@ function buildMessage(contact) {
   if (segment.tier === "particulier") {
     const firstListing = contact.listings[0];
     const liensAnnonces = contact.listings
-      .map((l) => `• ${l.title} → ${l.url}`)
+      .map((l) => `• ${l.title} → ${siteUrl}${l.relativePath}`)
       .join("\n");
 
     return `Bonjour 👋,
@@ -114,7 +113,7 @@ Seriez-vous disponible pour un court échange ? 🙏
 
 Merci et bonne continuation !
 — L'équipe MeubléFacile
-🌐 ${SITE_URL}`;
+🌐 ${siteUrl}`;
   }
 
   // ── TIER 2 : Petit gestionnaire (4-10 biens) → 3 exemples + nombre total ──
@@ -125,8 +124,8 @@ Merci et bonne continuation !
       .join("\n");
     const neighborhoodSlugs = [...new Set(contact.listings.map((l) => l.neighborhoodSlug || ""))];
     const lienQuartier = neighborhoodSlugs[0]
-      ? `${SITE_URL}/douala/${neighborhoodSlugs[0]}`
-      : SITE_URL;
+      ? `${siteUrl}/douala/${neighborhoodSlugs[0]}`
+      : siteUrl;
 
     return `Bonjour 👋,
 
@@ -146,7 +145,7 @@ Si vous souhaitez enrichir vos fiches (photos, équipements, disponibilités), j
 
 Merci et à bientôt !
 — ${FOUNDER_NAME}, MeubléFacile
-🌐 ${SITE_URL}`;
+🌐 ${siteUrl}`;
   }
 
   // ── TIER 3 : Agence / Gros compte (11+ biens) → message court et VIP ──
@@ -159,7 +158,7 @@ Je suis ${FOUNDER_NAME}, fondateur de *MeubléFacile*, la nouvelle plateforme de
 
 Votre catalogue de *${nbBiens} logements meublés* (${quartiersTexte}…) est désormais référencé sur notre site 🎉
 
-🌐 ${SITE_URL}
+🌐 ${siteUrl}
 
 J'aimerais beaucoup échanger avec vous pour :
 ✅ Optimiser la visibilité de vos annonces
@@ -174,52 +173,7 @@ ${FOUNDER_NAME} — MeubléFacile`;
 
 // ── Générer la page HTML ──
 function buildHTML() {
-  const rows = contacts
-    .map((contact, index) => {
-      const phone = contact.phone.replace("+", "");
-      const message = encodeURIComponent(buildMessage(contact));
-      const waUrl = `https://wa.me/${phone}?text=${message}`;
-      const segment = getSegment(contact);
-
-      // Limit displayed chips to 5 max in the table
-      const displayListings = contact.listings.slice(0, 5);
-      const remaining = contact.listings.length - displayListings.length;
-      const listingsHTML =
-        displayListings
-          .map(
-            (l) =>
-              `<span class="listing-chip" title="${l.url}">${l.type === "studio" ? "🏨" : "🏠"} ${l.title} <small>(${l.neighborhood})</small></span>`
-          )
-          .join(" ") +
-        (remaining > 0
-          ? ` <span class="listing-chip" style="background:#e0e7ff;color:#3730a3">+${remaining} autres</span>`
-          : "");
-
-      return `
-        <tr data-status="pending" data-segment="${segment.tier}" id="row-${index}">
-          <td class="cell-index">${index + 1}</td>
-          <td class="cell-phone">
-            <strong>${contact.phoneRaw}</strong>
-            <span class="segment-badge" style="background:${segment.color}">${segment.label}</span>
-          </td>
-          <td class="cell-count">${contact.listings.length}</td>
-          <td class="cell-listings">${listingsHTML}</td>
-          <td class="cell-action">
-            <a href="${waUrl}" target="_blank" rel="noopener" class="btn-wa" onclick="markSent(${index})">
-              💬 Envoyer
-            </a>
-          </td>
-          <td class="cell-status">
-            <select onchange="updateStatus(${index}, this.value)">
-              <option value="pending">⏳ En attente</option>
-              <option value="sent">✅ Envoyé</option>
-              <option value="replied">💬 Répondu</option>
-              <option value="skip">⏭️ Ignoré</option>
-            </select>
-          </td>
-        </tr>`;
-    })
-    .join("\n");
+  const contactsJson = JSON.stringify(contacts).replace(/</g, "\\u003c");
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -254,27 +208,86 @@ function buildHTML() {
     }
 
     .header {
-      text-align: center;
-      margin-bottom: 32px;
+      margin-bottom: 24px;
       padding: 24px;
       background: linear-gradient(135deg, var(--brand-700), var(--brand-600));
       border-radius: 16px;
       color: white;
+      box-shadow: 0 4px 12px rgba(22, 163, 74, 0.2);
     }
 
-    .header h1 { font-size: 1.5rem; margin-bottom: 8px; }
+    .header h1 { font-size: 1.5rem; margin-bottom: 6px; }
     .header p { opacity: 0.9; font-size: 0.9rem; }
+
+    /* URL Config Banner */
+    .url-config-bar {
+      margin-top: 20px;
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .url-config-bar label {
+      font-weight: 600;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+
+    .url-config-bar input {
+      flex: 1;
+      min-width: 260px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.85rem;
+      font-family: monospace;
+      outline: none;
+    }
+
+    .btn-apply-url {
+      padding: 8px 16px;
+      background: #111827;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-apply-url:hover { background: #000; }
+
+    .btn-test-url {
+      padding: 8px 14px;
+      background: rgba(255,255,255,0.9);
+      color: var(--brand-700);
+      border: none;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-test-url:hover { background: white; }
 
     .stats {
       display: flex;
       gap: 16px;
       justify-content: center;
-      margin-top: 16px;
+      margin-top: 20px;
       flex-wrap: wrap;
     }
 
     .stat-card {
-      background: rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.18);
       border-radius: 12px;
       padding: 12px 20px;
       text-align: center;
@@ -282,7 +295,7 @@ function buildHTML() {
     }
 
     .stat-card .number { font-size: 1.5rem; font-weight: 800; }
-    .stat-card .label { font-size: 0.75rem; opacity: 0.85; margin-top: 2px; }
+    .stat-card .label { font-size: 0.75rem; opacity: 0.9; margin-top: 2px; }
 
     .filters {
       display: flex;
@@ -384,6 +397,12 @@ function buildHTML() {
       font-size: 0.75rem;
       margin: 2px;
       white-space: nowrap;
+      text-decoration: none;
+      color: inherit;
+    }
+    .listing-chip:hover {
+      background: var(--brand-100);
+      color: var(--brand-700);
     }
 
     .listing-chip small { color: var(--gray-400); }
@@ -445,7 +464,16 @@ function buildHTML() {
 
   <div class="header">
     <h1>📱 MeubléFacile — Outreach WhatsApp</h1>
-    <p>Contactez les propriétaires pour vous présenter et enrichir les fiches</p>
+    <p>Contactez les propriétaires pour vous présenter et valoriser leurs fiches en ligne</p>
+
+    <!-- Base URL Control Bar -->
+    <div class="url-config-bar">
+      <label for="site-url-input">🌐 Domaine du site :</label>
+      <input type="text" id="site-url-input" value="${DEFAULT_SITE_URL}">
+      <button type="button" class="btn-apply-url" onclick="applyBaseUrl()">Actualiser les liens WhatsApp</button>
+      <a href="${DEFAULT_SITE_URL}" target="_blank" rel="noopener" id="btn-test-link" class="btn-test-url">🔗 Tester le lien</a>
+    </div>
+
     <div class="stats">
       <div class="stat-card">
         <div class="number" id="stat-total">${contacts.length}</div>
@@ -490,19 +518,149 @@ function buildHTML() {
         <th>#</th>
         <th>Téléphone</th>
         <th>Biens</th>
-        <th>Annonces</th>
+        <th>Annonces (cliquer pour voir la fiche)</th>
         <th>Action</th>
         <th>Statut</th>
       </tr>
     </thead>
     <tbody id="contacts-body">
-      ${rows}
     </tbody>
   </table>
 
   <script>
-    // Persist status in localStorage
+    const CONTACTS = ${contactsJson};
+    const FOUNDER_NAME = "${FOUNDER_NAME}";
     const STORAGE_KEY = "mf_outreach_status";
+    const BASE_URL_STORAGE_KEY = "mf_outreach_base_url";
+
+    function getBaseUrl() {
+      let saved = localStorage.getItem(BASE_URL_STORAGE_KEY);
+      if (!saved) saved = "${DEFAULT_SITE_URL}";
+      return saved.replace(/\\/+$/, "");
+    }
+
+    function getSegment(contact) {
+      const n = contact.listings.length;
+      if (n <= 3) return { tier: "particulier", label: "🏠 Particulier", color: "#16a34a" };
+      if (n <= 10) return { tier: "gestionnaire", label: "🏢 Gestionnaire", color: "#2563eb" };
+      return { tier: "agence", label: "🏗️ Agence", color: "#9333ea" };
+    }
+
+    function buildMessage(contact, siteUrl) {
+      const nbBiens = contact.listings.length;
+      const segment = getSegment(contact);
+
+      if (segment.tier === "particulier") {
+        const firstListing = contact.listings[0];
+        const liensAnnonces = contact.listings
+          .map((l) => "• " + l.title + " → " + siteUrl + l.relativePath)
+          .join("\\n");
+
+        return "Bonjour 👋,\\n\\n" +
+          "Je suis " + FOUNDER_NAME + ", fondateur de *MeubléFacile* — la nouvelle plateforme de logements meublés à Douala.\\n\\n" +
+          "Je vous contacte pour vous féliciter 🎉 ! Votre bien « " + firstListing.title + " » a été référencé sur notre site.\\n\\n" +
+          "🏠 Vous avez *" + nbBiens + " bien(s)* listé(s) chez nous :\\n" +
+          liensAnnonces + "\\n\\n" +
+          "MeubléFacile aide les locataires à trouver facilement un studio ou appartement meublé à Douala, avec photos réelles et contact WhatsApp direct.\\n\\n" +
+          "Nous pourrions avoir besoin de quelques infos supplémentaires pour rendre votre annonce encore plus attractive (photos complémentaires, équipements, disponibilité...).\\n\\n" +
+          "Seriez-vous disponible pour un court échange ? 🙏\\n\\n" +
+          "Merci et bonne continuation !\\n" +
+          "— L'équipe MeubléFacile\\n" +
+          "🌐 " + siteUrl;
+      }
+
+      if (segment.tier === "gestionnaire") {
+        const exemples = contact.listings
+          .slice(0, 3)
+          .map((l) => "• " + l.title + " (" + l.neighborhood + ")")
+          .join("\\n");
+        const neighborhoodSlugs = [...new Set(contact.listings.map((l) => l.neighborhoodSlug || ""))];
+        const lienQuartier = neighborhoodSlugs[0]
+          ? siteUrl + "/douala/" + neighborhoodSlugs[0]
+          : siteUrl;
+
+        return "Bonjour 👋,\\n\\n" +
+          "Je suis " + FOUNDER_NAME + ", fondateur de *MeubléFacile* — la nouvelle plateforme de logements meublés à Douala.\\n\\n" +
+          "Je vous contacte pour vous informer que *" + nbBiens + " de vos biens meublés* sont désormais référencés sur notre plateforme 🎉\\n\\n" +
+          "Parmi eux :\\n" +
+          exemples + "\\n" +
+          "…et " + (nbBiens - 3) + " autre(s).\\n\\n" +
+          "👉 Retrouvez vos annonces ici : " + lienQuartier + "\\n\\n" +
+          "MeubléFacile met en avant vos logements avec photos réelles et contact WhatsApp direct auprès de locataires qualifiés.\\n\\n" +
+          "Si vous souhaitez enrichir vos fiches (photos, équipements, disponibilités), je serais ravi d'échanger avec vous.\\n\\n" +
+          "Merci et à bientôt !\\n" +
+          "— " + FOUNDER_NAME + ", MeubléFacile\\n" +
+          "🌐 " + siteUrl;
+      }
+
+      const neighborhoods = [...new Set(contact.listings.map((l) => l.neighborhood))];
+      const quartiersTexte = neighborhoods.slice(0, 3).join(", ");
+
+      return "Bonjour 👋,\\n\\n" +
+        "Je suis " + FOUNDER_NAME + ", fondateur de *MeubléFacile*, la nouvelle plateforme de logements meublés à Douala.\\n\\n" +
+        "Votre catalogue de *" + nbBiens + " logements meublés* (" + quartiersTexte + "…) est désormais référencé sur notre site 🎉\\n\\n" +
+        "🌐 " + siteUrl + "\\n\\n" +
+        "J'aimerais beaucoup échanger avec vous pour :\\n" +
+        "✅ Optimiser la visibilité de vos annonces\\n" +
+        "✅ Mettre à jour les infos et photos\\n" +
+        "✅ Explorer un éventuel partenariat\\n\\n" +
+        "Seriez-vous disponible pour un court appel ou une rencontre ? 📞\\n\\n" +
+        "Cordialement,\\n" +
+        FOUNDER_NAME + " — MeubléFacile";
+    }
+
+    function renderTable() {
+      const siteUrl = getBaseUrl();
+      const tbody = document.getElementById("contacts-body");
+      const statuses = loadStatuses();
+
+      tbody.innerHTML = CONTACTS.map((contact, index) => {
+        const phone = contact.phone.replace("+", "");
+        const message = encodeURIComponent(buildMessage(contact, siteUrl));
+        const waUrl = "https://wa.me/" + phone + "?text=" + message;
+        const segment = getSegment(contact);
+        const savedStatus = statuses[index] || "pending";
+
+        const displayListings = contact.listings.slice(0, 5);
+        const remaining = contact.listings.length - displayListings.length;
+        const listingsHTML = displayListings
+          .map((l) => {
+            const fullUrl = siteUrl + l.relativePath;
+            return '<a href="' + fullUrl + '" target="_blank" rel="noopener" class="listing-chip" title="Cliquer pour ouvrir : ' + fullUrl + '">' +
+              (l.type === "studio" ? "🏨" : "🏠") + ' ' + l.title + ' <small>(' + l.neighborhood + ')</small></a>';
+          })
+          .join(" ") +
+          (remaining > 0 ? ' <span class="listing-chip" style="background:#e0e7ff;color:#3730a3">+' + remaining + ' autres</span>' : "");
+
+        return '<tr data-status="' + savedStatus + '" data-segment="' + segment.tier + '" id="row-' + index + '">' +
+          '<td class="cell-index">' + (index + 1) + '</td>' +
+          '<td class="cell-phone"><strong>' + contact.phoneRaw + '</strong><span class="segment-badge" style="background:' + segment.color + '">' + segment.label + '</span></td>' +
+          '<td class="cell-count">' + contact.listings.length + '</td>' +
+          '<td class="cell-listings">' + listingsHTML + '</td>' +
+          '<td class="cell-action"><a href="' + waUrl + '" target="_blank" rel="noopener" class="btn-wa" onclick="markSent(' + index + ')">💬 Envoyer</a></td>' +
+          '<td class="cell-status"><select onchange="updateStatus(' + index + ', this.value)">' +
+            '<option value="pending"' + (savedStatus === "pending" ? " selected" : "") + '>⏳ En attente</option>' +
+            '<option value="sent"' + (savedStatus === "sent" ? " selected" : "") + '>✅ Envoyé</option>' +
+            '<option value="replied"' + (savedStatus === "replied" ? " selected" : "") + '>💬 Répondu</option>' +
+            '<option value="skip"' + (savedStatus === "skip" ? " selected" : "") + '>⏭️ Ignoré</option>' +
+          '</select></td>' +
+        '</tr>';
+      }).join("\\n");
+
+      updateStats();
+      filterTable();
+    }
+
+    function applyBaseUrl() {
+      const input = document.getElementById("site-url-input");
+      const cleanUrl = input.value.trim().replace(/\\/+$/, "");
+      if (!cleanUrl) return;
+
+      localStorage.setItem(BASE_URL_STORAGE_KEY, cleanUrl);
+      document.getElementById("btn-test-link").href = cleanUrl;
+      renderTable();
+      alert("✅ Liens WhatsApp mis à jour avec le domaine :\\n" + cleanUrl);
+    }
 
     function loadStatuses() {
       try {
@@ -544,7 +702,7 @@ function buildHTML() {
       document.getElementById("stat-sent").textContent = sent;
       document.getElementById("stat-replied").textContent = replied;
       document.getElementById("stat-pending").textContent = pending;
-      const total = ${contacts.length};
+      const total = CONTACTS.length;
       const contacted = sent + replied;
       document.getElementById("progress-label").textContent = contacted;
       document.getElementById("progress-fill").style.width = ((contacted / total) * 100) + "%";
@@ -555,7 +713,6 @@ function buildHTML() {
 
     function setFilter(filter, btn) {
       currentFilter = filter;
-      // Only reset active on status-filter buttons (those without segment-specific onclick)
       document.querySelectorAll(".filters > .filter-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       filterTable();
@@ -582,17 +739,12 @@ function buildHTML() {
       });
     }
 
-    // Restore saved statuses on load
-    (function restore() {
-      const statuses = loadStatuses();
-      for (const [index, value] of Object.entries(statuses)) {
-        const row = document.getElementById("row-" + index);
-        if (row) {
-          row.setAttribute("data-status", value);
-          row.querySelector("select").value = value;
-        }
-      }
-      updateStats();
+    // Init on load
+    (function init() {
+      const currentUrl = getBaseUrl();
+      document.getElementById("site-url-input").value = currentUrl;
+      document.getElementById("btn-test-link").href = currentUrl;
+      renderTable();
     })();
   </script>
 

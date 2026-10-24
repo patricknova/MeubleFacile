@@ -34,11 +34,15 @@ export const TYPE_SLUGS: Record<string, string> = {
 };
 
 /**
- * Inverse du mapping slug → type
+ * Inverse du mapping slug → type (supporte à la fois les slugs français et les types bruts pour rétro-compatibilité)
  */
-export const SLUG_TO_TYPE: Record<string, string> = Object.fromEntries(
-  Object.entries(TYPE_SLUGS).map(([k, v]) => [v, k])
-);
+export const SLUG_TO_TYPE: Record<string, string> = {
+  ...Object.fromEntries(Object.entries(TYPE_SLUGS).map(([k, v]) => [v, k])),
+  studio: "studio",
+  apartment: "apartment",
+  room: "room",
+  duplex: "duplex",
+};
 
 /**
  * Labels d'affichage des types en français

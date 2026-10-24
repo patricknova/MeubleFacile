@@ -189,11 +189,19 @@ Un test complet de l'application en cours d'exécution sur le serveur de dévelo
 
 ## 📱 Outreach WhatsApp — Contact des Propriétaires
 
-- [x] **Script d'extraction** : [`scripts/generate-wa-outreach.mjs`](file:///e:/digitalex%20meuble%20app/meublefacile/scripts/generate-wa-outreach.mjs) — extrait et déduplique les contacts du catalogue
+- [x] **Script d'extraction & génération** : [`scripts/generate-wa-outreach.mjs`](file:///e:/digitalex%20meuble%20app/meublefacile/scripts/generate-wa-outreach.mjs) — extrait et déduplique les contacts du catalogue
+- [x] **Correction des URLs des annonces (Résolution de l'erreur 404)** :
+  - Remplacement des types bruts (`studio`, `apartment`) par les vrais slugs SEO de l'application (`studio-meuble`, `appartement-meuble`, etc.) correspondant aux routes Next.js `/[city]/[neighborhood]/[type]/[slug]`.
+  - Extension de `SLUG_TO_TYPE` dans [`lib/slug.ts`](file:///e:/digitalex%20meuble%20app/meublefacile/lib/slug.ts) pour tolérer à la fois les slugs français et les types bruts (rétro-compatibilité intégrale).
+- [x] **Barre de configuration dynamique du Domaine (`Base URL`)** :
+  - Ajout d'un sélecteur de domaine en en-tête de [`wa-outreach.html`](file:///e:/digitalex%20meuble%20app/meublefacile/scripts/outreach/wa-outreach.html) avec persistance `localStorage`.
+  - Bouton « Actualiser les liens WhatsApp » permettant de basculer instantanément les 92 liens et messages vers l'URL Vercel active, localhost ou un nom de domaine personnalisé.
+  - Bouton direct « 🔗 Tester le lien » pour vérifier la connectivité du site avant envoi.
 - [x] **Page HTML interactive** : [`scripts/outreach/wa-outreach.html`](file:///e:/digitalex%20meuble%20app/meublefacile/scripts/outreach/wa-outreach.html) — tableau de bord avec :
   - Liens `wa.me` cliquables avec message personnalisé pré-rempli pour chaque propriétaire
   - Suivi du statut (En attente / Envoyé / Répondu / Ignoré) persisté en `localStorage`
   - Barre de progression et statistiques en temps réel
   - Filtres par statut et recherche par nom/quartier/numéro
 - **Statistiques** : 156 annonces → **92 contacts uniques** (3 propriétaires multi-biens)
+
 
