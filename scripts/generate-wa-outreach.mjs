@@ -16,7 +16,7 @@ const OUTPUT_PATH = resolve(OUTPUT_DIR, "wa-outreach.html");
 const DEFAULT_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://meuble-facile.vercel.app";
 
 // ── Ton nom (à personnaliser) ──
-const FOUNDER_NAME = "Patrick"; // ← Change ton prénom ici
+const FOUNDER_NAME = "Joel"; // ← Change ton prénom ici
 
 // ── Mapping type d'annonce → slug URL français officiel ──
 const TYPE_SLUGS = {
@@ -535,7 +535,10 @@ function buildHTML() {
 
     function getBaseUrl() {
       let saved = localStorage.getItem(BASE_URL_STORAGE_KEY);
-      if (!saved) saved = "${DEFAULT_SITE_URL}";
+      if (!saved || saved.includes("meublefacile.vercel.app")) {
+        saved = "${DEFAULT_SITE_URL}";
+        localStorage.setItem(BASE_URL_STORAGE_KEY, saved);
+      }
       return saved.replace(/\\/+$/, "");
     }
 

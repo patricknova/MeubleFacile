@@ -205,7 +205,9 @@ Un test complet de l'application en cours d'exécution sur le serveur de dévelo
 - [x] **Domaine de production configuré** : [`https://meuble-facile.vercel.app`](https://meuble-facile.vercel.app)
   - Mise à jour du domaine par défaut dans l'ensemble des fichiers de l'application (`.env.local`, `.env.example`, `seo.ts`, `robots.ts`, `sitemap.ts`, `layout.tsx`, `page.tsx`).
   - Régénération complète de [`scripts/outreach/wa-outreach.html`](file:///e:/digitalex%20meuble%20app/meublefacile/scripts/outreach/wa-outreach.html) avec `https://meuble-facile.vercel.app` comme domaine par défaut pour les 92 contacts et 156+ fiches logements.
-  - Vérification de la connectivité et du statut HTTP 200 sur le domaine de production en ligne et pour la fiche test `le-petit-cocon-bonapriso`.
+- [x] **Personnalisation de l'Outreach & Fondateur** :
+  - Définition de **Joel** comme prénom du fondateur dans tous les messages pré-rédigés pour les propriétaires.
+  - Détection et migration automatique dans le navigateur (`localStorage`) de toute ancienne URL vers l'URL officielle `https://meuble-facile.vercel.app`.
 - **Statistiques** : 156 annonces → **92 contacts uniques** (3 propriétaires multi-biens)
 
 
