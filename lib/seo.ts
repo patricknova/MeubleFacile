@@ -1,6 +1,6 @@
 import { TYPE_LABELS, TYPE_SLUGS } from "./slug";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meublefacile.vercel.app";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meuble-facile.vercel.app";
 
 /**
  * Génère le title SEO d'une fiche annonce (~60 caractères)

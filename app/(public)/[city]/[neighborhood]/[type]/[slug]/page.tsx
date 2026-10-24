@@ -25,7 +25,7 @@ interface Props {
   params: Promise<{ city: string; neighborhood: string; type: string; slug: string }>;
 }
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meublefacile.vercel.app";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meuble-facile.vercel.app";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { city, neighborhood, type, slug } = await params;

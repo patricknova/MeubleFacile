@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     "Trouvez votre studio ou appartement meublé à Douala. Annonces vérifiées, photos réelles, contactez le propriétaire directement sur WhatsApp.",
 };
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meublefacile.vercel.app";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meuble-facile.vercel.app";
 
 const POPULAR_NEIGHBORHOODS = [
   { name: "Bonamoussadi", slug: "bonamoussadi", desc: "30 meublés · Résidentiel prisé, commerces" },

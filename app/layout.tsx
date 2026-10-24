@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description:
     "Trouvez votre studio ou appartement meublé à Douala. Annonces vérifiées, photos réelles, contactez le propriétaire directement sur WhatsApp.",
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "https://meublefacile.vercel.app"
+    process.env.NEXT_PUBLIC_SITE_URL || "https://meuble-facile.vercel.app"
   ),
   openGraph: {
     siteName: "MeubléFacile",

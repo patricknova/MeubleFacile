@@ -113,7 +113,7 @@ export default async function CityPage({ params }: Props) {
     ...catListings.filter((c) => !(dbListings ?? []).some((l) => l.slug === c.slug)),
   ].slice(0, 12);
 
-  const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meublefacile.vercel.app";
+  const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meuble-facile.vercel.app";
 
   const jsonLd = {
     "@context": "https://schema.org",

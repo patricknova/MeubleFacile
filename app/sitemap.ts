@@ -3,7 +3,7 @@ import { TYPE_SLUGS } from "@/lib/slug";
 import { getAllPosts } from "@/lib/blog";
 import type { MetadataRoute } from "next";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meublefacile.vercel.app";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meuble-facile.vercel.app";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = await createClient();

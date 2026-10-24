@@ -12,7 +12,7 @@ interface BreadcrumbsProps {
   className?: string;
 }
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meublefacile.vercel.app";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://meuble-facile.vercel.app";
 
 export function Breadcrumbs({ items, className }: BreadcrumbsProps) {
   const all = [{ label: "Accueil", href: "/" }, ...items];

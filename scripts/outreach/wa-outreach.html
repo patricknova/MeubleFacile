@@ -292,9 +292,9 @@
     <!-- Base URL Control Bar -->
     <div class="url-config-bar">
       <label for="site-url-input">🌐 Domaine du site :</label>
-      <input type="text" id="site-url-input" value="https://meublefacile.vercel.app">
+      <input type="text" id="site-url-input" value="https://meuble-facile.vercel.app">
       <button type="button" class="btn-apply-url" onclick="applyBaseUrl()">Actualiser les liens WhatsApp</button>
-      <a href="https://meublefacile.vercel.app" target="_blank" rel="noopener" id="btn-test-link" class="btn-test-url">🔗 Tester le lien</a>
+      <a href="https://meuble-facile.vercel.app" target="_blank" rel="noopener" id="btn-test-link" class="btn-test-url">🔗 Tester le lien</a>
     </div>
 
     <div class="stats">
@@ -358,7 +358,7 @@
 
     function getBaseUrl() {
       let saved = localStorage.getItem(BASE_URL_STORAGE_KEY);
-      if (!saved) saved = "https://meublefacile.vercel.app";
+      if (!saved) saved = "https://meuble-facile.vercel.app";
       return saved.replace(/\/+$/, "");
     }
 

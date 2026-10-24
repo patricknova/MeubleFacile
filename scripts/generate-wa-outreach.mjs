@@ -13,7 +13,7 @@ const CATALOG_PATH = resolve(__dirname, "../lib/catalog-data.json");
 const OUTPUT_DIR = resolve(__dirname, "outreach");
 const OUTPUT_PATH = resolve(OUTPUT_DIR, "wa-outreach.html");
 
-const DEFAULT_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://meublefacile.vercel.app";
+const DEFAULT_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://meuble-facile.vercel.app";
 
 // ── Ton nom (à personnaliser) ──
 const FOUNDER_NAME = "Patrick"; // ← Change ton prénom ici
